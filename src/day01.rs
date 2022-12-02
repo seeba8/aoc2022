@@ -1,15 +1,11 @@
-use anyhow::{Context, Result};
+use anyhow::Result;
+
+use crate::util::read_input;
 
 pub fn solve() -> Result<()> {
-    let input = std::fs::read_to_string(format!(
-        "resources/{}.txt",
-        module_path!()
-            .split_once("::")
-            .context("Cannot split filename")?
-            .1
-    ))?;
-    println!("{:?}", part1(&input));
-    println!("{:?}", part2(&input));
+    let input = read_input("day01.txt");
+    println!("Day 01 part 1: {:?}", part1(&input));
+    println!("Day 01 part 2: {:?}", part2(&input));
     Ok(())
 }
 
@@ -32,17 +28,19 @@ fn part2(input: &str) -> usize {
 
 #[cfg(test)]
 pub mod tests {
+    use crate::util::read_example;
+
     use super::{part1, part2};
 
     #[test]
     fn it_finds_the_elf_with_most_calories() {
-        let input = std::fs::read_to_string("examples/day01.txt").unwrap();
+        let input = read_example("day01.txt");
         assert_eq!(24000, part1(&input));
     }
 
     #[test]
     fn it_finds_the_top_3_elves() {
-        let input = std::fs::read_to_string("examples/day01.txt").unwrap();
+        let input = read_example("day01.txt");
         assert_eq!(45000, part2(&input));
     }
 }

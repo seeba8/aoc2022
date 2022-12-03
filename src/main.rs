@@ -1,11 +1,16 @@
-use anyhow::Ok;
-
+#![feature(iter_next_chunk)]
+#![deny(clippy::all)]
+#![warn(clippy::pedantic)]
+#![warn(clippy::nursery)]
 mod day01;
 mod day02;
 pub mod util;
+mod day03;
 
-fn main() -> anyhow::Result<()>{
-    day01::solve()?;
-    day02::solve()?;
+fn main() -> color_eyre::Result<()>{
+    color_eyre::install()?;
+    day01::solve();
+    day02::solve();
+    day03::solve()?;
     Ok(())
 }

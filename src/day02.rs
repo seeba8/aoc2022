@@ -2,11 +2,10 @@ use std::{cmp::Ordering, str::FromStr};
 
 use crate::util::read_input;
 
-pub fn solve() -> anyhow::Result<()> {
+pub fn solve(){
     let input = read_input("day02.txt");
     println!("Day 02 part 1: {}", play_part1(&input));
     println!("Day 02 part 2: {}", play_part2(&input));
-    Ok(())
 }
 
 pub fn play_part1(input: &str) -> usize {
@@ -14,7 +13,7 @@ pub fn play_part1(input: &str) -> usize {
     for line in input.lines() {
         // the s in (s)elf is silent
         let (other, elf): (Shape, Shape) = line.trim().split_once(' ').map(|(other, elf)| (other.parse().unwrap(), elf.parse().unwrap())).unwrap();
-        score += elf.play(&other);
+        score += elf.play(other);
     }
     score
 }
@@ -24,7 +23,7 @@ pub fn play_part2(input: &str) -> usize {
     for line in input.lines() {
         // the s in (s)elf is silent
         let (other, target): (Shape, Target) = line.trim().split_once(' ').map(|(other, target)| (other.parse().unwrap(), target.parse().unwrap())).unwrap();
-        score += other.target(&target).play(&other);
+        score += other.target(target).play(other);
     }
     score
 }
@@ -48,9 +47,9 @@ impl FromStr for Target{
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
-            "X" => Ok(Target::Lose),
-            "Y" => Ok(Target::Draw),
-            "Z" => Ok(Target::Win),
+            "X" => Ok(Self::Lose),
+            "Y" => Ok(Self::Draw),
+            "Z" => Ok(Self::Win),
             x => Err(format!("Illegal target: '{x}'"))
         }
     }
@@ -63,9 +62,9 @@ impl FromStr for Shape {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
-            "A" | "X" => Ok(Shape::Rock),
-            "B" | "Y" => Ok(Shape::Paper),
-            "C" | "Z" => Ok(Shape::Scissor),
+            "A" | "X" => Ok(Self::Rock),
+            "B" | "Y" => Ok(Self::Paper),
+            "C" | "Z" => Ok(Self::Scissor),
             x => Err(format!("Illegal character: '{x}'"))
         }
     }
@@ -80,47 +79,35 @@ impl Ord for Shape {
 impl PartialOrd for Shape {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         match (self, other) {
-            (Shape::Rock, Shape::Rock) => Some(Ordering::Equal),
-            (Shape::Rock, Shape::Paper) => Some(Ordering::Less),
-            (Shape::Rock, Shape::Scissor) => Some(Ordering::Greater),
-            (Shape::Paper, Shape::Rock) => Some(Ordering::Greater),
-            (Shape::Paper, Shape::Paper) => Some(Ordering::Equal),
-            (Shape::Paper, Shape::Scissor) => Some(Ordering::Less),
-            (Shape::Scissor, Shape::Rock) => Some(Ordering::Less),
-            (Shape::Scissor, Shape::Paper) => Some(Ordering::Greater),
-            (Shape::Scissor, Shape::Scissor) => Some(Ordering::Equal),
+            (Self::Rock, Self::Rock) | (Self::Paper, Self::Paper) | (Self::Scissor, Self::Scissor) => Some(Ordering::Equal),
+            (Self::Rock, Self::Paper) | (Self::Paper, Self::Scissor) | (Self::Scissor, Self::Rock) => Some(Ordering::Less),
+            (Self::Rock, Self::Scissor) |  (Self::Paper, Self::Rock) | (Self::Scissor, Self::Paper)=> Some(Ordering::Greater),
         }
     }
 }
 
 impl Shape {
 
-    pub fn value(&self) -> usize {
+    pub const fn value(self) -> usize {
         match self {
-            Shape::Rock => 1,
-            Shape::Paper => 2,
-            Shape::Scissor => 3,
+            Self::Rock => 1,
+            Self::Paper => 2,
+            Self::Scissor => 3,
         }
     }
-    pub fn play(&self, other: &Self) -> usize {
-        match self.cmp(other) {
+    pub fn play(self, other: Self) -> usize {
+        match self.cmp(&other) {
             Ordering::Less => self.value(),
             Ordering::Equal => self.value() + 3,
             Ordering::Greater => self.value() + 6,
         }
     }
 
-    pub fn target(&self, target: &Target) -> Shape {
+    pub const fn target(self, target: Target) -> Self {
         match (target, self) {
-            (Target::Lose, Shape::Rock) => Shape::Scissor,
-            (Target::Lose, Shape::Paper) => Shape::Rock,
-            (Target::Lose, Shape::Scissor) => Shape::Paper,
-            (Target::Draw, Shape::Rock) => Shape::Rock,
-            (Target::Draw, Shape::Paper) => Shape::Paper,
-            (Target::Draw, Shape::Scissor) => Shape::Scissor,
-            (Target::Win, Shape::Rock) => Shape::Paper,
-            (Target::Win, Shape::Paper) => Shape::Scissor,
-            (Target::Win, Shape::Scissor) => Shape::Rock,
+            (Target::Lose, Self::Paper) | (Target::Draw, Self::Rock) | (Target::Win, Self::Scissor) => Self::Rock,
+            (Target::Lose, Self::Scissor) | (Target::Draw, Self::Paper) | (Target::Win, Self::Rock) => Self::Paper,
+            (Target::Lose, Self::Rock) | (Target::Draw, Self::Scissor) | (Target::Win, Self::Paper) => Self::Scissor,
         }
     }
 }
@@ -141,9 +128,9 @@ mod tests {
 
     #[test]
     fn it_scores_correctly() {
-        assert_eq!(8, Shape::Paper.play(&Shape::Rock));
-        assert_eq!(1, Shape::Rock.play(&Shape::Paper));
-        assert_eq!(6, Shape::Scissor.play(&Shape::Scissor));
+        assert_eq!(8, Shape::Paper.play(Shape::Rock));
+        assert_eq!(1, Shape::Rock.play(Shape::Paper));
+        assert_eq!(6, Shape::Scissor.play(Shape::Scissor));
     }
 
     #[test]

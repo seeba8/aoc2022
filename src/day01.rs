@@ -1,16 +1,14 @@
-use anyhow::Result;
-
 use crate::util::read_input;
 
-pub fn solve() -> Result<()> {
+pub fn solve() {
     let input = read_input("day01.txt");
     println!("Day 01 part 1: {:?}", part1(&input));
     println!("Day 01 part 2: {:?}", part2(&input));
-    Ok(())
 }
 
 fn get_elves(input: &str) -> Vec<usize> {
     input
+        .replace("\r\n", "\n")
         .split("\n\n")
         .map(|elf| elf.lines().map(|line| line.parse::<usize>().unwrap()).sum())
         .collect()

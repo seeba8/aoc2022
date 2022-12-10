@@ -1,3 +1,5 @@
+use std::str::FromStr;
+
 /// # Panics
 /// This may panic if there is a problem with the file
 #[must_use] pub fn read_input(filename: &str) -> String {
@@ -11,12 +13,26 @@
 }
 
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Direction {
     Up,
     Right,
     Down,
     Left,
+}
+
+impl FromStr for Direction {
+    type Err = color_eyre::Report;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "U" => Ok(Self::Up),
+            "R" => Ok(Self::Right),
+            "D" => Ok(Self::Down),
+            "L" => Ok(Self::Left),
+            _ => Err(color_eyre::eyre::eyre!("Cannot parse direction '{s}'"))
+        }
+    }
 }
 
 impl Default for Direction {

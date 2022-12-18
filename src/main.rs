@@ -15,6 +15,7 @@ mod day07;
 mod day08;
 mod day09;
 mod day10;
+mod day11;
 
 fn main() -> color_eyre::Result<()>{
     color_eyre::install()?;
@@ -28,5 +29,6 @@ fn main() -> color_eyre::Result<()>{
     day08::solve()?;
     day09::solve()?;
     day10::solve()?;
+    day11::solve();
     Ok(())
 }

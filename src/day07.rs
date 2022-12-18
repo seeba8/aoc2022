@@ -215,7 +215,7 @@ pub mod tests {
         let input_raw = read_example("day07.txt");
         let input: Vec<&str> = input_raw.lines().collect();
         root.parse(&input, &mut 0)?;
-        assert_eq!(24933642, *root.get_folders_larger_than(REQUIRED_FREE_SPACE - (FILE_SYSTEM_SIZE - root.size())).iter().min().unwrap());
+        assert_eq!(24_933_642, *root.get_folders_larger_than(REQUIRED_FREE_SPACE - (FILE_SYSTEM_SIZE - root.size())).iter().min().unwrap());
         Ok(())
     }
 

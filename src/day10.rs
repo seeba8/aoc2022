@@ -11,7 +11,7 @@ const SCREEN_WIDTH: usize = 40;
 pub fn solve() -> color_eyre::Result<()> {
     let input = read_input("day10.txt");
     println!("Day 10 part 1: {}", part1(&input)?);
-    println!("Day 10 part 1:\n{}", part2(&input)?);
+    println!("Day 10 part 2:\n{}", part2(&input)?);
     Ok(())
 }
 

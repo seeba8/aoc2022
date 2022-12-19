@@ -13,8 +13,10 @@ use crate::util::read_input;
 
 pub fn solve() {
     let input = read_input("day14.txt");
-    let mut cave = Cave::parse(&input, (500, 0));
+    let mut cave = Cave::parse(&input, (500, 0), None);
     println!("Day 14 part 1: {}", cave.count_resting_sand());
+    let mut cave = Cave::parse(&input, (500, 0), Some(2));
+    println!("Day 14 part 2: {}", cave.count_resting_sand());
 }
 
 pub struct Cave {
@@ -32,14 +34,14 @@ impl Cave {
         self.grid[coord] = cell;
     }
 
-    pub fn get_cell(&self, coordinate: impl Into<Coordinate>) -> Option<Cell> {
-        Some(self.grid[self.get_index(coordinate)])
+    pub fn get_cell(&self, coordinate: impl Into<Coordinate>) -> Cell {
+        self.grid[self.get_index(coordinate)]
     }
 
     pub fn count_resting_sand(&mut self) -> usize {
         let mut c = 0;
         while self.tick().is_some() {
-            c+= 1;
+            c += 1;
         }
         c
     }
@@ -49,19 +51,23 @@ impl Cave {
     }
 
     fn drop_sand(&mut self, coordinate: impl Into<Coordinate>) -> Option<Coordinate> {
+        if self.get_cell(self.drop_position) == Cell::Sand {
+            return None;
+        }
         let mut coordinate: Coordinate = coordinate.into();
         if coordinate.x >= self.width {
             return None;
         }
-        while Some(Cell::Air) == self.get_cell(coordinate) {
+        while Cell::Air == self.get_cell(coordinate) {
             coordinate.y += 1;
         }
         // back up 1
         coordinate.y -= 1;
+
         // try left and right first. If they are already filled, stay in the centre.
-        if Some(Cell::Air) == self.get_cell((coordinate.x.checked_sub(1)?, coordinate.y + 1)) {
+        if Cell::Air == self.get_cell((coordinate.x.checked_sub(1)?, coordinate.y + 1)) {
             self.drop_sand((coordinate.x.checked_sub(1)?, coordinate.y + 1))
-        } else if Some(Cell::Air) == self.get_cell((coordinate.x + 1, coordinate.y + 1)) {
+        } else if Cell::Air == self.get_cell((coordinate.x + 1, coordinate.y + 1)) {
             self.drop_sand((coordinate.x + 1, coordinate.y + 1))
         } else {
             self.set_cell(coordinate, Cell::Sand);
@@ -102,9 +108,16 @@ impl Cave {
         }
     }
 
-    pub fn parse(input: &str, drop_position: impl Into<Coordinate>) -> Self {
+    pub fn parse(
+        input: &str,
+        drop_position: impl Into<Coordinate>,
+        floor_offset: Option<usize>,
+    ) -> Self {
         let mut drop_position: Coordinate = drop_position.into();
-        let mut lines = all_consuming(Self::_parse_input)(input.trim()).finish().unwrap().1;
+        let mut lines = all_consuming(Self::_parse_input)(input.trim())
+            .finish()
+            .unwrap()
+            .1;
         let MinMaxResult::MinMax(min, max) = lines.iter().flatten().map(|x| x.x).minmax() else {
             panic!()
         };
@@ -112,12 +125,26 @@ impl Cave {
         let MinMaxResult::MinMax(min, max) = lines.iter().flatten().map(|y| y.y).minmax() else {
             panic!()
         };
-        let minmax_y = (min.min(drop_position.y), max.max(drop_position.y));
-        let width = minmax_x.1 - minmax_x.0 + 1;
-        let height = minmax_y.1 - minmax_y.0 + 1;
-        let grid: Vec<Cell> = vec![Cell::Air; width * height];
-        drop_position.x -= minmax_x.0;
+        let mut minmax_y = (min.min(drop_position.y), max.max(drop_position.y));
+
+        let mut width = minmax_x.1 - minmax_x.0 + 1;
+        let mut height = minmax_y.1 - minmax_y.0 + 1;
+        let mut add_x_offset = 0;
+        if let Some(floor_offset) = floor_offset {
+            minmax_y.1 += floor_offset;
+            height += floor_offset;
+            add_x_offset = ((2 * height + 2) - width) / 2;
+            width += add_x_offset * 2;
+            lines.push(vec![
+                (minmax_x.0 - add_x_offset, minmax_y.1).into(),
+                (minmax_x.1 + add_x_offset, minmax_y.1).into(),
+            ]);
+        }
+
+        drop_position.x = drop_position.x + add_x_offset - minmax_x.0;
         drop_position.y -= minmax_y.0;
+        let grid: Vec<Cell> = vec![Cell::Air; width * height];
+
         let mut cave = Self {
             grid,
             height,
@@ -127,7 +154,7 @@ impl Cave {
         // shift input over to be properly zeroed
         for line in &mut lines {
             for c in line {
-                c.x -= minmax_x.0;
+                c.x = c.x + add_x_offset - minmax_x.0;
                 c.y -= minmax_y.0;
             }
         }
@@ -145,7 +172,7 @@ impl Display for Cave {
                 if self.drop_position == (x, y).into() {
                     write!(f, "+")?;
                 } else {
-                    write!(f, "{}", self.get_cell((x, y)).expect("This cannot happen"))?;
+                    write!(f, "{}", self.get_cell((x, y)))?;
                 }
             }
             writeln!(f)?;
@@ -196,9 +223,8 @@ pub mod tests {
     use super::*;
     #[test]
     fn it_parses_rocks() {
-
         let input = read_example("day14.txt");
-        let cave = Cave::parse(&input, (500, 0));
+        let cave = Cave::parse(&input, (500, 0), None);
         let expected = r#"
 ......+...
 ..........
@@ -217,24 +243,24 @@ pub mod tests {
     #[test]
     fn it_drops_single_sand() {
         let input = read_example("day14.txt");
-        let mut cave = Cave::parse(&input, (500, 0));
+        let mut cave = Cave::parse(&input, (500, 0), None);
         let position = cave.tick();
-        assert_eq!(Some((6,8).into()), position);
+        assert_eq!(Some((6, 8).into()), position);
     }
 
     #[test]
     fn it_drops_two_sands() {
         let input = read_example("day14.txt");
-        let mut cave = Cave::parse(&input, (500, 0));
+        let mut cave = Cave::parse(&input, (500, 0), None);
         cave.tick();
         let position = cave.tick();
-        assert_eq!(Some((5,8).into()), position);
+        assert_eq!(Some((5, 8).into()), position);
     }
 
     #[test]
     fn it_drops_saaand() {
         let input = read_example("day14.txt");
-        let mut cave = Cave::parse(&input, (500, 0));
+        let mut cave = Cave::parse(&input, (500, 0), None);
         for _ in 0..22 {
             cave.tick();
         }
@@ -248,15 +274,16 @@ pub mod tests {
 ..###ooo#.
 ....oooo#.
 ...ooooo#.
-#########.".trim();
+#########."
+            .trim();
         let actual = cave.to_string();
         let actual = actual.trim();
-        assert_eq!(expected, actual,"expected:\n{expected}, actual:\n{actual}");
+        assert_eq!(expected, actual, "expected:\n{expected}, actual:\n{actual}");
     }
     #[test]
     fn it_drops_saaaaaaaaaaaaaaand() {
         let input = read_example("day14.txt");
-        let mut cave = Cave::parse(&input, (500, 0));
+        let mut cave = Cave::parse(&input, (500, 0), None);
         for _ in 0..24 {
             assert!(cave.tick().is_some());
         }
@@ -266,7 +293,39 @@ pub mod tests {
     #[test]
     fn it_solves_part1() {
         let input = read_example("day14.txt");
-        let mut cave = Cave::parse(&input, (500, 0));
+        let mut cave = Cave::parse(&input, (500, 0), None);
         assert_eq!(24, cave.count_resting_sand());
+    }
+
+    #[test]
+    fn it_adds_floor() {
+        let input = read_example("day14.txt");
+        let cave = Cave::parse(&input, (500, 0), Some(2));
+        let expected = r"
+..............+...........
+..........................
+..........................
+..........................
+............#...##........
+............#...#.........
+..........###...#.........
+................#.........
+................#.........
+........#########.........
+..........................
+##########################"
+            .trim();
+        let actual = cave.to_string();
+        let actual = actual.trim();
+        assert_eq!(expected, actual, "expected:\n{expected}, actual:\n{actual}");
+    }
+
+    #[test]
+    fn it_drops_on_floor() {
+        let input = read_example("day14.txt");
+        let mut cave = Cave::parse(&input, (500, 0), Some(2));
+        let res = cave.count_resting_sand();
+        println!("{}", &cave);
+        assert_eq!(93, res);
     }
 }

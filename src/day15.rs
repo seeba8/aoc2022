@@ -1,4 +1,9 @@
-use std::{collections::HashSet, fmt::Display, ops::Range};
+use std::{
+    cmp::Ordering,
+    collections::HashSet,
+    fmt::Display,
+    ops::{AddAssign, Range},
+};
 
 use nom::{
     bytes::complete::tag,
@@ -13,6 +18,7 @@ pub fn solve() {
     let input = read_input("day15.txt");
     let sensors: Vec<Sensor> = input.lines().map(Sensor::parse).collect();
     println!("Day 15 part 1: {}", coverage(2_000_000, &sensors));
+    println!("Day 15 part 2: {}", uncovered_spot2(4_000_000, &sensors));
 }
 
 #[derive(Debug, Clone)]
@@ -58,6 +64,57 @@ pub fn coverage(y: isize, sensors: &[Sensor]) -> usize {
     coverage.difference(&beacon_positions).count()
 }
 
+pub fn uncovered_spot2(max: isize, sensors: &[Sensor]) -> isize {
+    fn is_covered(point: &Point, sensors: &[Sensor]) -> bool {
+        sensors
+            .iter()
+            .any(|s| s.position.manhattan_distance(point) <= s.range())
+    }
+
+    const fn is_in_range(point: &Point, max: isize) -> bool {
+        point.x >= 0 && point.x <= max && point.y >= 0 && point.y <= max
+    }
+
+    for sensor in sensors {
+        let starting_point = Point {
+            x: sensor.position.x,
+            y: sensor.position.y
+                - std::convert::TryInto::<isize>::try_into(sensor.range()).unwrap()
+                - 1,
+        };
+        let mut point = starting_point;
+        let mut direction = Point { x: 1, y: 1 };
+        loop {
+            point += direction;
+            if !is_covered(&point, sensors) && is_in_range(&point, max) {
+                return point.x * 4_000_000 + point.y;
+            };
+            if point == starting_point {
+                break;
+            }
+            match (
+                point.x.cmp(&sensor.position.x),
+                point.y.cmp(&sensor.position.y),
+            ) {
+                (Ordering::Greater, Ordering::Equal) => {
+                    // We are at the right tip of the circumference
+                    direction = Point { x: -1, y: 1 };
+                }
+                (Ordering::Equal, Ordering::Greater) => {
+                    // We are at the bottom tip of the circumference
+                    direction = Point { x: -1, y: -1 };
+                }
+                (Ordering::Less, Ordering::Equal) => {
+                    // We are at the left tip of the circumference
+                    direction = Point { x: 1, y: -1 };
+                }
+                _ => {}
+            }
+        }
+    }
+    todo!()
+}
+
 impl Display for Sensor {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
@@ -75,7 +132,7 @@ pub struct Point {
 }
 
 impl Point {
-    pub fn parse_point(input: &str) -> IResult<&str, Point> {
+    pub fn parse_point(input: &str) -> IResult<&str, Self> {
         map(
             separated_pair(
                 preceded(tag("x="), nom::character::complete::i32),
@@ -100,6 +157,13 @@ impl From<(isize, isize)> for Point {
 impl Display for Point {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "x={}, y={}", self.x, self.y)
+    }
+}
+
+impl AddAssign for Point {
+    fn add_assign(&mut self, rhs: Self) {
+        self.x += rhs.x;
+        self.y += rhs.y;
     }
 }
 
@@ -130,5 +194,12 @@ pub mod tests {
         let input = read_example("day15.txt");
         let sensors: Vec<Sensor> = input.lines().map(Sensor::parse).collect();
         assert_eq!(26, coverage(10, &sensors));
+    }
+
+    #[test]
+    fn it_finds_uncovered_spot() {
+        let input = read_example("day15.txt");
+        let sensors: Vec<Sensor> = input.lines().map(Sensor::parse).collect();
+        assert_eq!(56_000_011, uncovered_spot2(20, &sensors));
     }
 }

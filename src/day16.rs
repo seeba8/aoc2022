@@ -3,6 +3,7 @@ use std::{
     fmt::{Debug, Display},
 };
 
+use itertools::Itertools;
 use nom::{
     branch::alt,
     bytes::complete::tag,
@@ -17,7 +18,14 @@ use crate::util::read_input;
 pub fn solve() {
     let input = read_input("day16.txt");
     let vulcano = Vulcano::parse(&input);
-    println!("Day 16 part 1: {}", vulcano.get_best_pressure_release(30));
+    println!(
+        "Day 16 part 1: {}",
+        vulcano.get_best_pressure_release(1, 30)
+    );
+    println!(
+        "Day 16 part 2: {}",
+        vulcano.get_best_pressure_release(2, 26)
+    );
 }
 
 #[derive(Debug)]
@@ -92,14 +100,13 @@ impl Vulcano {
         distances
     }
 
-    fn get_best_pressure_release_with_elephant(&self, remaining_time: usize) -> usize {
+    fn get_best_pressure_release(&self, num_actors: usize, remaining_time: usize) -> usize {
         let mut best = 0;
         let dist = self.get_distances();
         let start: Name = ('A', 'A').into();
         self._get_best_pressure_release_with_elephant(
             &dist,
-            (start, Action::Open(start)),
-            (start, Action::Open(start)),
+            &vec![(start, Action::Open(start)); num_actors],
             &mut HashSet::default(),
             remaining_time,
             0,
@@ -111,22 +118,30 @@ impl Vulcano {
     fn _get_best_pressure_release_with_elephant(
         &self,
         dist: &HashMap<Tunnel, (usize, Name)>,
-        me: (Name, Action),
-        elephant: (Name, Action),
+        actors: &[(Name, Action)],
         opened_valves: &mut HashSet<Valve>,
         remaining_time: usize,
         current: usize,
         best_flow: &mut usize,
     ) {
-        
+        if actors.len() > 2 {
+            unimplemented!()
+        }
         if remaining_time == 0 {
             return;
         }
-        if let Action::Open(name) = me.1 {
-            opened_valves.insert(*self.valves.iter().find(|v| v.name == name).unwrap());
+        for me in actors {
+            if let Action::WalkTowards(name) = me.1 && opened_valves.contains(self.valves.iter().find(|v| v.name == name).unwrap()) {
+                return;
+            }
+            if let Action::Open(name) = me.1 && opened_valves.contains(self.valves.iter().find(|v| v.name == name).unwrap()) {
+                return;
+            }
         }
-        if let Action::Open(name) = elephant.1 {
-            opened_valves.insert(*self.valves.iter().find(|v| v.name == name).unwrap());
+        for actor in actors {
+            if let Action::Open(name) = actor.1 {
+                opened_valves.insert(*self.valves.iter().find(|v| v.name == name).unwrap());
+            }
         }
         // dbg!(&opened_valves);
         let current = current
@@ -136,40 +151,79 @@ impl Vulcano {
                 .sum::<usize>();
         if current > *best_flow {
             *best_flow = current;
+            dbg!(&best_flow);
         }
-       
-        // if let Action::WalkTowards(name) = me.1 && opened_valves.contains(self.valves.iter().find(|v| v.name == name).unwrap()) {
-        //     return;
-        // }
-        // if let Action::WalkTowards(name) = elephant.1 && opened_valves.contains(self.valves.iter().find(|v| v.name == name).unwrap()) {
-        //     return;
-        // }
 
-        
-        dbg!(&current);
-        let me_actions = self._get_actions(dist, me, opened_valves, remaining_time);
-        dbg!(&me_actions);
-        let elephant_actions = self._get_actions(dist, elephant, opened_valves, remaining_time);
-        dbg!(&elephant_actions);
-        if me_actions.is_empty() && elephant_actions.is_empty() {
-            dbg!(&remaining_time);
-            let current = current + (remaining_time - 1) * opened_valves.iter().map(|v|v.flow_rate as usize).sum::<usize>();
-            if current > *best_flow {
-                *best_flow = current;
+        // dbg!(&current);
+        // let me_actions = self._get_actions(dist, me, opened_valves, remaining_time);
+        // dbg!(&me_actions);
+        // let elephant_actions = self._get_actions(dist, elephant, opened_valves, remaining_time);
+        // dbg!(&elephant_actions);
+        let possible_actions: Vec<_> = actors
+            .iter()
+            .map(|actor| self._get_actions(dist, *actor, opened_valves, remaining_time))
+            .collect();
+        // dbg!(&possible_actions);
+
+        // if me_actions.is_empty() && elephant_actions.is_empty() {
+        //     dbg!(&remaining_time);
+        //     let current = current + (remaining_time - 1) * opened_valves.iter().map(|v|v.flow_rate as usize).sum::<usize>();
+        //     if current > *best_flow {
+        //         *best_flow = current;
+        //     }
+        //     return;
+        // }
+        for x in possible_actions.into_iter().multi_cartesian_product() {
+            if x.len() > 1 && x.iter().map(|action| action.1).all_equal() && x[0].1 != Action::Noop
+            {
+                continue;
             }
-            return;
+            //dbg!(&x);
+            self._get_best_pressure_release_with_elephant(
+                dist,
+                x.as_slice(),
+                opened_valves,
+                remaining_time - 1,
+                current,
+                best_flow,
+            );
+            for (_, action) in x {
+                if let Action::Open(name) = action {
+                    opened_valves.remove(self.valves.iter().find(|v| v.name == name).unwrap());
+                }
+            }
         }
-        for me_action in &me_actions {
-            for elephant_action in &elephant_actions {
+        /*for (me_action, elephant_action) in iproduct!(&possible_actions[0], &possible_actions[1]) {
+            // dbg!(&me_action);
+            // dbg!(&elephant_action);
+            if me_action.1 == elephant_action.1 && me_action.1 != Action::Noop {
+                continue;
+            }
+            self._get_best_pressure_release_with_elephant(
+                dist,
+                &[*me_action, *elephant_action],
+                opened_valves,
+                remaining_time - 1,
+                current,
+                best_flow,
+            );
+            if let Action::Open(name) = me_action.1 {
+                opened_valves.remove(self.valves.iter().find(|v| v.name == name).unwrap());
+            }
+            if let Action::Open(name) = elephant_action.1 {
+                opened_valves.remove(self.valves.iter().find(|v| v.name == name).unwrap());
+            }
+        }*/
+        /*for me_action in &possible_actions[0] {
+            for elephant_action in &possible_actions[1] {
                 if me_action.1 == elephant_action.1 && me_action.1 != Action::Noop {
                     continue;
                 }
-                dbg!(me_action);
-                dbg!(elephant_action);
+                // dbg!(&me_action);
+                // dbg!(&elephant_action);
                 self._get_best_pressure_release_with_elephant(
                     dist,
-                    *me_action,
-                    *elephant_action,
+                    vec![*me_action, *elephant_action],
                     opened_valves,
                     remaining_time - 1,
                     current,
@@ -183,6 +237,7 @@ impl Vulcano {
                 }
             }
         }
+        */
     }
 
     fn _get_actions(
@@ -208,15 +263,16 @@ impl Vulcano {
                     .valves
                     .iter()
                     .filter(|v| {
-                        v.flow_rate > 0
-                            && !opened_valves.contains(v)
-                            && dist.get(&Tunnel::new(position, v.name)).unwrap().0 < remaining_time
+                        v.flow_rate > 0 && !opened_valves.contains(v)
+                        //&& dist.get(&Tunnel::new(position, v.name)).unwrap().0 < remaining_time
                     })
                     .copied()
                     .collect();
                 remaining_valves.sort_unstable_by_key(|v| {
                     v.flow_rate as usize
-                        * (remaining_time - 1 - dist.get(&Tunnel::new(position, v.name)).unwrap().0)
+                        * (remaining_time.saturating_sub(1).saturating_sub(
+                            2 * dist.get(&Tunnel::new(position, v.name)).unwrap().0,
+                        ))
                 });
                 let mut return_values = vec![];
                 for remaining_valve in remaining_valves.into_iter().rev() {
@@ -231,74 +287,6 @@ impl Vulcano {
                 }
                 return_values
             }
-        }
-    }
-
-    fn get_best_pressure_release(&self, remaining_time: usize) -> usize {
-        let mut best = 0;
-        let dist = self.get_distances();
-        self._get_best_pressure_release(
-            &dist,
-            *self
-                .valves
-                .iter()
-                .find(|v| v.name == Name::from(('A', 'A')))
-                .unwrap(),
-            &mut HashSet::new(),
-            remaining_time,
-            0,
-            &mut best,
-        );
-        best
-    }
-
-    fn _get_best_pressure_release(
-        &self,
-        dist: &HashMap<Tunnel, (usize, Name)>,
-        position: Valve,
-        opened_valves: &mut HashSet<Valve>,
-        remaining_time: usize,
-        current: usize,
-        best_flow: &mut usize,
-    ) {
-        if current > *best_flow {
-            *best_flow = current;
-        }
-        if remaining_time == 0 {
-            return;
-        }
-        let mut remaining_valves: Vec<Valve> = self
-            .valves
-            .iter()
-            .filter(|v| {
-                v.flow_rate > 0
-                    && !opened_valves.contains(v)
-                    && dist.get(&Tunnel::new(position.name, v.name)).unwrap().0 < remaining_time
-            })
-            .copied()
-            .collect();
-        remaining_valves.sort_unstable_by_key(|v| {
-            v.flow_rate as usize
-                * (remaining_time - 1 - dist.get(&Tunnel::new(position.name, v.name)).unwrap().0)
-        });
-        while let Some(target) = remaining_valves.pop() {
-            let remaining_time = remaining_time
-                - 1
-                - dist
-                    .get(&Tunnel::new(position.name, target.name))
-                    .unwrap()
-                    .0;
-            let current = current + remaining_time * target.flow_rate as usize;
-            opened_valves.insert(target);
-            self._get_best_pressure_release(
-                dist,
-                target,
-                opened_valves,
-                remaining_time,
-                current,
-                best_flow,
-            );
-            opened_valves.remove(&target);
         }
     }
 }
@@ -343,7 +331,7 @@ impl Debug for Name {
 #[derive(Debug, Clone, Hash, PartialEq, Eq, Copy)]
 pub struct Valve {
     name: Name,
-    flow_rate: u8,
+    flow_rate: u16,
 }
 
 #[derive(Debug, Clone, Hash, PartialEq, Eq, Copy)]
@@ -388,7 +376,13 @@ impl Valve {
         }
 
         let (name, flow_rate, tunnels) = all_consuming(_parse)(input).finish().unwrap().1;
-        (Self { name, flow_rate }, tunnels)
+        (
+            Self {
+                name,
+                flow_rate: u16::from(flow_rate),
+            },
+            tunnels,
+        )
     }
 }
 
@@ -457,7 +451,7 @@ pub mod tests {
     fn it_finds_optimal_pressure_release() {
         let input = read_example("day16.txt");
         let vulcano = Vulcano::parse(&input);
-        assert_eq!(1651, vulcano.get_best_pressure_release(30));
+        assert_eq!(1651, vulcano.get_best_pressure_release(1, 30));
     }
 
     #[test]
@@ -479,6 +473,6 @@ pub mod tests {
     fn it_finds_optimal_pressure_release_with_elephant() {
         let input = read_example("day16.txt");
         let vulcano = Vulcano::parse(&input);
-        assert_eq!(1707, vulcano.get_best_pressure_release_with_elephant(26));
+        assert_eq!(1707, vulcano.get_best_pressure_release(2, 26));
     }
 }

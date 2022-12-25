@@ -47,10 +47,10 @@ impl Vulcano {
         Self { valves: v, tunnels }
     }
 
-    fn get_distances(&self) -> HashMap<Tunnel, usize> {
-        let mut distances: HashMap<Tunnel, usize> = HashMap::default();
+    fn get_distances(&self) -> HashMap<Tunnel, (usize, Name)> {
+        let mut distances: HashMap<Tunnel, (usize, Name)> = HashMap::default();
         for tunnel in &self.tunnels {
-            distances.insert(*tunnel, 1);
+            distances.insert(*tunnel, (1, tunnel.to));
         }
         for valve in &self.valves {
             distances.insert(
@@ -58,7 +58,7 @@ impl Vulcano {
                     from: valve.name,
                     to: valve.name,
                 },
-                0,
+                (0, valve.name),
             );
         }
         for k in 0..self.valves.len() {
@@ -69,26 +69,169 @@ impl Vulcano {
                             from: self.valves[i].name,
                             to: self.valves[k].name,
                         })
-                        .unwrap_or(&usize::MAX);
+                        .unwrap_or(&(usize::MAX, (' ', ' ').into()));
                     let kj = *distances
                         .get(&Tunnel {
                             from: self.valves[k].name,
                             to: self.valves[j].name,
                         })
-                        .unwrap_or(&usize::MAX);
+                        .unwrap_or(&(usize::MAX, (' ', ' ').into()));
                     let ij = distances
                         .entry(Tunnel {
                             from: self.valves[i].name,
                             to: self.valves[j].name,
                         })
-                        .or_insert(usize::MAX);
-                    if *ij > ik.saturating_add(kj) {
-                        *ij = ik + kj;
+                        .or_insert((usize::MAX, (' ', ' ').into()));
+                    if ij.0 > ik.0.saturating_add(kj.0) {
+                        ij.0 = ik.0 + kj.0;
+                        ij.1 = ik.1;
                     }
                 }
             }
         }
         distances
+    }
+
+    fn get_best_pressure_release_with_elephant(&self, remaining_time: usize) -> usize {
+        let mut best = 0;
+        let dist = self.get_distances();
+        let start: Name = ('A', 'A').into();
+        self._get_best_pressure_release_with_elephant(
+            &dist,
+            (start, Action::Open(start)),
+            (start, Action::Open(start)),
+            &mut HashSet::default(),
+            remaining_time,
+            0,
+            &mut best,
+        );
+        best
+    }
+    #[allow(clippy::too_many_arguments)]
+    fn _get_best_pressure_release_with_elephant(
+        &self,
+        dist: &HashMap<Tunnel, (usize, Name)>,
+        me: (Name, Action),
+        elephant: (Name, Action),
+        opened_valves: &mut HashSet<Valve>,
+        remaining_time: usize,
+        current: usize,
+        best_flow: &mut usize,
+    ) {
+        
+        if remaining_time == 0 {
+            return;
+        }
+        if let Action::Open(name) = me.1 {
+            opened_valves.insert(*self.valves.iter().find(|v| v.name == name).unwrap());
+        }
+        if let Action::Open(name) = elephant.1 {
+            opened_valves.insert(*self.valves.iter().find(|v| v.name == name).unwrap());
+        }
+        // dbg!(&opened_valves);
+        let current = current
+            + opened_valves
+                .iter()
+                .map(|v| v.flow_rate as usize)
+                .sum::<usize>();
+        if current > *best_flow {
+            *best_flow = current;
+        }
+       
+        // if let Action::WalkTowards(name) = me.1 && opened_valves.contains(self.valves.iter().find(|v| v.name == name).unwrap()) {
+        //     return;
+        // }
+        // if let Action::WalkTowards(name) = elephant.1 && opened_valves.contains(self.valves.iter().find(|v| v.name == name).unwrap()) {
+        //     return;
+        // }
+
+        
+        dbg!(&current);
+        let me_actions = self._get_actions(dist, me, opened_valves, remaining_time);
+        dbg!(&me_actions);
+        let elephant_actions = self._get_actions(dist, elephant, opened_valves, remaining_time);
+        dbg!(&elephant_actions);
+        if me_actions.is_empty() && elephant_actions.is_empty() {
+            dbg!(&remaining_time);
+            let current = current + (remaining_time - 1) * opened_valves.iter().map(|v|v.flow_rate as usize).sum::<usize>();
+            if current > *best_flow {
+                *best_flow = current;
+            }
+            return;
+        }
+        for me_action in &me_actions {
+            for elephant_action in &elephant_actions {
+                if me_action.1 == elephant_action.1 && me_action.1 != Action::Noop {
+                    continue;
+                }
+                dbg!(me_action);
+                dbg!(elephant_action);
+                self._get_best_pressure_release_with_elephant(
+                    dist,
+                    *me_action,
+                    *elephant_action,
+                    opened_valves,
+                    remaining_time - 1,
+                    current,
+                    best_flow,
+                );
+                if let Action::Open(name) = me_action.1 {
+                    opened_valves.remove(self.valves.iter().find(|v| v.name == name).unwrap());
+                }
+                if let Action::Open(name) = elephant_action.1 {
+                    opened_valves.remove(self.valves.iter().find(|v| v.name == name).unwrap());
+                }
+            }
+        }
+    }
+
+    fn _get_actions(
+        &self,
+        dist: &HashMap<Tunnel, (usize, Name)>,
+        person: (Name, Action),
+        opened_valves: &HashSet<Valve>,
+        remaining_time: usize,
+    ) -> Vec<(Name, Action)> {
+        #[allow(clippy::single_match_else)]
+        match person.1 {
+            Action::WalkTowards(target) => {
+                if person.0 == target {
+                    vec![(person.0, Action::Open(target))]
+                } else {
+                    let path_to_target = dist.get(&Tunnel::new(person.0, target)).unwrap().1;
+                    vec![(path_to_target, Action::WalkTowards(target))]
+                }
+            }
+            _ => {
+                let position = person.0;
+                let mut remaining_valves: Vec<Valve> = self
+                    .valves
+                    .iter()
+                    .filter(|v| {
+                        v.flow_rate > 0
+                            && !opened_valves.contains(v)
+                            && dist.get(&Tunnel::new(position, v.name)).unwrap().0 < remaining_time
+                    })
+                    .copied()
+                    .collect();
+                remaining_valves.sort_unstable_by_key(|v| {
+                    v.flow_rate as usize
+                        * (remaining_time - 1 - dist.get(&Tunnel::new(position, v.name)).unwrap().0)
+                });
+                let mut return_values = vec![];
+                for remaining_valve in remaining_valves.into_iter().rev() {
+                    let first_step = dist
+                        .get(&Tunnel::new(position, remaining_valve.name))
+                        .unwrap()
+                        .1;
+                    return_values.push((first_step, Action::WalkTowards(remaining_valve.name)));
+                }
+                if return_values.is_empty() {
+                    return_values.push((person.0, Action::Noop));
+                }
+                return_values
+            }
+        }
     }
 
     fn get_best_pressure_release(&self, remaining_time: usize) -> usize {
@@ -99,7 +242,7 @@ impl Vulcano {
             *self
                 .valves
                 .iter()
-                .find(|v| v.name == Name::from("AA"))
+                .find(|v| v.name == Name::from(('A', 'A')))
                 .unwrap(),
             &mut HashSet::new(),
             remaining_time,
@@ -111,7 +254,7 @@ impl Vulcano {
 
     fn _get_best_pressure_release(
         &self,
-        dist: &HashMap<Tunnel, usize>,
+        dist: &HashMap<Tunnel, (usize, Name)>,
         position: Valve,
         opened_valves: &mut HashSet<Valve>,
         remaining_time: usize,
@@ -130,17 +273,21 @@ impl Vulcano {
             .filter(|v| {
                 v.flow_rate > 0
                     && !opened_valves.contains(v)
-                    && *dist.get(&Tunnel::new(position.name, v.name)).unwrap() < remaining_time
+                    && dist.get(&Tunnel::new(position.name, v.name)).unwrap().0 < remaining_time
             })
             .copied()
             .collect();
         remaining_valves.sort_unstable_by_key(|v| {
             v.flow_rate as usize
-                * (remaining_time - 1 - dist.get(&Tunnel::new(position.name, v.name)).unwrap())
+                * (remaining_time - 1 - dist.get(&Tunnel::new(position.name, v.name)).unwrap().0)
         });
         while let Some(target) = remaining_valves.pop() {
-            let remaining_time =
-                remaining_time - 1 - dist.get(&Tunnel::new(position.name, target.name)).unwrap();
+            let remaining_time = remaining_time
+                - 1
+                - dist
+                    .get(&Tunnel::new(position.name, target.name))
+                    .unwrap()
+                    .0;
             let current = current + remaining_time * target.flow_rate as usize;
             opened_valves.insert(target);
             self._get_best_pressure_release(
@@ -165,10 +312,19 @@ impl From<(char, char)> for Name {
     }
 }
 
-impl From<&str> for Name {
-    fn from(value: &str) -> Self {
+impl TryFrom<&str> for Name {
+    type Error = color_eyre::Report;
+
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
         let mut chars = value.chars();
-        Self([chars.next().unwrap(), chars.next().unwrap()])
+        Ok(Self([
+            chars
+                .next()
+                .ok_or_else(|| color_eyre::eyre::eyre!("Cannot get first character of name"))?,
+            chars
+                .next()
+                .ok_or_else(|| color_eyre::eyre::eyre!("Cannot get second character of name"))?,
+        ]))
     }
 }
 
@@ -236,6 +392,13 @@ impl Valve {
     }
 }
 
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+enum Action {
+    WalkTowards(Name),
+    Open(Name),
+    Noop,
+}
+
 #[cfg(test)]
 pub mod tests {
     use crate::util::read_example;
@@ -247,12 +410,19 @@ pub mod tests {
         let (valve, tunnels) = Valve::parse(input);
         assert_eq!(
             Valve {
-                name: "AA".into(),
+                name: ('A', 'A').into(),
                 flow_rate: 0
             },
             valve
         );
-        assert_eq!(vec![Name::from("DD"), "II".into(), "BB".into()], tunnels);
+        assert_eq!(
+            vec![
+                Name::try_from("DD").unwrap(),
+                "II".try_into().unwrap(),
+                "BB".try_into().unwrap()
+            ],
+            tunnels
+        );
     }
 
     #[test]
@@ -267,8 +437,20 @@ pub mod tests {
         let input = read_example("day16.txt");
         let vulcano = Vulcano::parse(&input);
         let distances = vulcano.get_distances();
-        assert_eq!(*distances.get(&Tunnel::new("JJ", "EE")).unwrap(), 4);
-        assert_eq!(*distances.get(&Tunnel::new("JJ", "HH")).unwrap(), 7);
+        assert_eq!(
+            distances
+                .get(&Tunnel::new(('J', 'J'), ('E', 'E')))
+                .unwrap()
+                .0,
+            4
+        );
+        assert_eq!(
+            distances
+                .get(&Tunnel::new(('J', 'J'), ('H', 'H')))
+                .unwrap()
+                .0,
+            7
+        );
     }
 
     #[test]
@@ -276,5 +458,27 @@ pub mod tests {
         let input = read_example("day16.txt");
         let vulcano = Vulcano::parse(&input);
         assert_eq!(1651, vulcano.get_best_pressure_release(30));
+    }
+
+    #[test]
+    fn it_gets_next_step_for_shortest_path() {
+        let input = read_example("day16.txt");
+        let vulcano = Vulcano::parse(&input);
+        let distances = vulcano.get_distances();
+        assert_eq!(
+            distances.get(&Tunnel::new(('J', 'J'), ('E', 'E'))).unwrap(),
+            &(4, ('I', 'I').into())
+        );
+        assert_eq!(
+            distances.get(&Tunnel::new(('J', 'J'), ('H', 'H'))).unwrap(),
+            &(7, ('I', 'I').into())
+        );
+    }
+
+    #[test]
+    fn it_finds_optimal_pressure_release_with_elephant() {
+        let input = read_example("day16.txt");
+        let vulcano = Vulcano::parse(&input);
+        assert_eq!(1707, vulcano.get_best_pressure_release_with_elephant(26));
     }
 }

@@ -4,6 +4,7 @@
 #![deny(clippy::all)]
 #![warn(clippy::pedantic)]
 #![warn(clippy::nursery)]
+#![feature(let_chains)]
 mod day01;
 mod day02;
 pub mod util;

@@ -4,9 +4,11 @@ use std::{
     str::FromStr,
 };
 
-use crate::util::{Direction, read_input};
+use itertools::Itertools;
 
-pub fn solve() -> color_eyre::Result<()>{
+use crate::util::{read_input, Direction};
+
+pub fn solve() -> color_eyre::Result<()> {
     let input = read_input("day17.txt");
     let mut chamber = Chamber::new(Jet::from_str(&input)?);
     chamber.drop_rocks(2022);
@@ -22,11 +24,7 @@ pub struct Rock {
 impl Rock {
     fn new(shape: Vec<impl Into<Row>>) -> Self {
         Self {
-            shape: shape
-                .into_iter()
-                .map(std::convert::Into::into)
-                .rev()
-                .collect(),
+            shape: shape.into_iter().map(std::convert::Into::into).collect(),
         }
     }
 
@@ -157,7 +155,7 @@ impl FromStr for Jet {
 
 #[derive(Clone, Default, Debug)]
 pub struct Rocks {
-    rocks: [Rock; 5],
+    rocks: Vec<Rock>,
     index: usize,
 }
 
@@ -187,10 +185,10 @@ impl Chamber {
         Self {
             rocks: Rocks {
                 index: 0,
-                rocks: [
+                rocks: vec![
                     Rock::new(vec![0b0011_1100]),
                     Rock::new(vec![0b0001_0000, 0b0011_1000, 0b0001_0000]),
-                    Rock::new(vec![0b0000_1000, 0b0000_1000, 0b0011_1000]),
+                    Rock::new(vec![0b0011_1000, 0b0000_1000, 0b0000_1000]),
                     Rock::new(vec![0b0010_0000, 0b0010_0000, 0b0010_0000, 0b0010_0000]),
                     Rock::new(vec![0b0011_0000, 0b0011_0000]),
                 ],
@@ -201,6 +199,78 @@ impl Chamber {
         }
     }
 
+    fn drop_many_rocks(&mut self, amount: usize) {
+        let original_rocks = self.rocks.clone();
+        let cycle_length = self.rocks.rocks.len() * self.jet.directions.len();
+        let mut i = 0;
+        let mut previous_cycle_start = 1;
+        let mut the_one_before_that = 1;
+        loop {
+            if i == amount {
+                return;
+            }
+            // if i >= cycle_length && amount - i > cycle_length {
+            //     if i == cycle_length {
+            //         let new_rock: Vec<Row> = self.grid[1..]
+            //             .iter()
+            //             .take_while(|row| !row.is_empty())
+            //             .map(|row| Row::from(row.0 & 0b1111_1110))
+            //             .collect();
+            //         self.rocks.rocks = vec![Rock::new(new_rock)];
+            //         //println!("{:?}", self.rocks.rocks[0]);
+            //         self.rocks.index = 0;
+
+            //     }
+            //     previous_cycle_start = self.get_highest_occupied_row() + 1;
+            //     self.spawn();
+            //     while self.current.is_some() {
+            //         self.gravity();
+            //     }
+            //     i += cycle_length;
+                
+            //     if i % 1_000_000 == 0 {
+            //         println!("{i}");
+            //     }
+            // } else {
+                if self.rocks.rocks.len() == 1 {
+                    self.rocks = original_rocks.clone();
+                }
+                self.drop_rocks(1);
+                i += 1;
+                if i % cycle_length == 0 && i > 0 && i < amount - cycle_length {
+                    println!("Check for cycles in round {i} out of {amount}");
+                    let new_rows: Vec<_> = self.grid[previous_cycle_start..=self.get_highest_occupied_row()].to_vec();
+                    if self.grid[1..previous_cycle_start].ends_with(&new_rows) {
+                        println!("Found cycle after {i} rounds. From: {previous_cycle_start} to including {}", self.get_highest_occupied_row());
+                        println!("{:?}", self.grid[previous_cycle_start]);
+                        println!("{:?}", self.grid[self.get_highest_occupied_row()]);
+                        
+                        while self.get_highest_occupied_row() > self.grid.len() - 1{
+                            self.grid.pop();
+                        }
+                        while i < amount - cycle_length {
+                            self.grid.append(&mut new_rows.clone());
+                            i += cycle_length;
+                        }
+                    }
+                    if the_one_before_that > 1 && previous_cycle_start > 1 {
+                        let needle = &self.grid[the_one_before_that..previous_cycle_start];
+                        if let Some(u) = self.grid[1..the_one_before_that].windows(needle.len()).position(|window| window == needle) {
+                            dbg!(u);
+                            dbg!(needle);
+                            std::fs::write("cycle.txt", format!("{:?}", needle.iter().rev().collect_vec())).unwrap();
+                            std::fs::write("chamber.txt", format!("{self}")).unwrap();
+                            return;
+                        }
+                    }
+                    dbg!(previous_cycle_start, self.get_highest_occupied_row());
+                    the_one_before_that = previous_cycle_start;
+                    previous_cycle_start = self.get_highest_occupied_row();
+                }
+            // }
+        }
+    }
+
     fn drop_rocks(&mut self, amount: usize) {
         let mut amount = amount;
         loop {
@@ -208,8 +278,7 @@ impl Chamber {
                 if amount > 0 {
                     self.spawn();
                     amount -= 1;
-                }
-                else {
+                } else {
                     return;
                 }
             }
@@ -281,12 +350,10 @@ impl Display for Chamber {
         // }
         for (i, row) in self.grid.iter().enumerate().skip(1).rev() {
             let mut static_row = format!("{row:?}");
-            if let Some((rock, y)) = self.current.as_ref() {
-                if i >= *y && i < *y + rock.height() {
-                    for (char_index, c) in format!("{:?}", rock.shape[i - *y]).char_indices() {
-                        if c == '#' && char_index < 7 {
-                            static_row.replace_range(char_index..=char_index, "@");
-                        }
+            if let Some((rock, y)) = self.current.as_ref() && i >= *y && i < *y + rock.height() {
+                for (char_index, c) in format!("{:?}", rock.shape[i - *y]).char_indices() {
+                    if c == '#' && char_index < 7 {
+                        static_row.replace_range(char_index..=char_index, "@");
                     }
                 }
             }
@@ -312,7 +379,7 @@ pub mod tests {
         assert_eq!(".#.\n###\n.#.\n", format!("{rock:?}"));
 
         let rock = Rock::new(vec![0b1110_0000, 0b0010_0000, 0b0010_0000]);
-        assert_eq!("###\n..#\n..#\n", format!("{rock:?}"));
+        assert_eq!("..#\n..#\n###\n", format!("{rock:?}"));
     }
 
     #[test]
@@ -348,19 +415,34 @@ pub mod tests {
         let mut chamber = Chamber::new(Jet::from_str(&read_example("day17.txt")).unwrap());
         chamber.spawn();
         chamber.jet();
-        assert_eq!(&(Rock::new(vec![0b0001_1110]), 4), chamber.current.as_ref().unwrap());
+        assert_eq!(
+            &(Rock::new(vec![0b0001_1110]), 4),
+            chamber.current.as_ref().unwrap()
+        );
         chamber.gravity();
-        assert_eq!(&(Rock::new(vec![0b0001_1110]), 3), chamber.current.as_ref().unwrap());
+        assert_eq!(
+            &(Rock::new(vec![0b0001_1110]), 3),
+            chamber.current.as_ref().unwrap()
+        );
     }
     #[test]
     fn it_simulates_one_piece() {
         let mut chamber = Chamber::new(Jet::from_str(&read_example("day17.txt")).unwrap());
         chamber.tick();
-        assert_eq!(&(Rock::new(vec![0b0001_1110]), 3), chamber.current.as_ref().unwrap());
+        assert_eq!(
+            &(Rock::new(vec![0b0001_1110]), 3),
+            chamber.current.as_ref().unwrap()
+        );
         chamber.tick();
-        assert_eq!(&(Rock::new(vec![0b0001_1110]), 2), chamber.current.as_ref().unwrap());
+        assert_eq!(
+            &(Rock::new(vec![0b0001_1110]), 2),
+            chamber.current.as_ref().unwrap()
+        );
         chamber.tick();
-        assert_eq!(&(Rock::new(vec![0b0001_1110]), 1), chamber.current.as_ref().unwrap());
+        assert_eq!(
+            &(Rock::new(vec![0b0001_1110]), 1),
+            chamber.current.as_ref().unwrap()
+        );
         chamber.tick();
         assert!(chamber.current.is_none());
         assert_eq!(Row::from(0b0011_1101), chamber.grid[1]);
@@ -370,7 +452,49 @@ pub mod tests {
     #[test]
     fn it_drops_rocks() {
         let mut chamber = Chamber::new(Jet::from_str(&read_example("day17.txt")).unwrap());
-        chamber.drop_rocks(2022);
+        chamber.drop_many_rocks(2022);
+        
         assert_eq!(3068, chamber.get_highest_occupied_row());
+    }
+
+    #[test]
+    fn it_drops_more_rocks() {
+        let mut chamber = Chamber::new(Jet::from_str(&read_example("day17.txt")).unwrap());
+        chamber.drop_many_rocks(20220);
+        std::fs::write("test.txt",format!("{chamber}"));
+        assert_eq!(30624, chamber.get_highest_occupied_row());
+    }
+
+    #[test]
+    fn it_drops_ten_rocks() {
+        let mut chamber = Chamber::new(Jet::from_str(&read_example("day17.txt")).unwrap());
+        chamber.drop_rocks(10);
+        chamber.spawn();
+        assert_eq!(
+            "|.......|
+|..@@@@.|
+|.......|
+|.......|
+|.......|
+|....#..|
+|....#..|
+|....##.|
+|##..##.|
+|######.|
+|.###...|
+|..#....|
+|.####..|
+|....##.|
+|....##.|
+|....#..|
+|..#.#..|
+|..#.#..|
+|#####..|
+|..###..|
+|...#...|
+|..####.|
++-------+",
+            format!("{chamber}").trim()
+        );
     }
 }

@@ -6,6 +6,6 @@
 	],
 	"settings": {
 		"rust-analyzer.checkOnSave.command": "clippy",
-		rust-analyzer.
+		"debug.console.collapseIdenticalLines": false,
 	}
 }

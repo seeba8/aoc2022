@@ -26,10 +26,10 @@ impl FromStr for Direction {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
-            "U" => Ok(Self::Up),
-            "R" => Ok(Self::Right),
-            "D" => Ok(Self::Down),
-            "L" => Ok(Self::Left),
+            "U" | "^" => Ok(Self::Up),
+            "R" | ">" => Ok(Self::Right),
+            "D" | "V" => Ok(Self::Down),
+            "L" | "<" => Ok(Self::Left),
             _ => Err(color_eyre::eyre::eyre!("Cannot parse direction '{s}'"))
         }
     }

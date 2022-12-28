@@ -22,10 +22,10 @@ pub fn solve() {
         "Day 16 part 1: {}",
         vulcano.get_best_pressure_release(1, 30)
     );
-    println!(
-        "Day 16 part 2: {}",
-        vulcano.get_best_pressure_release(2, 26)
-    );
+    // println!(
+    //     "Day 16 part 2: {}",
+    //     vulcano.get_best_pressure_release(2, 26)
+    // );
 }
 
 #[derive(Debug)]

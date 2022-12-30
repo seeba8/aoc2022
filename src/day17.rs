@@ -238,7 +238,7 @@ impl Chamber {
                 self.drop_rocks(1);
                 i += 1;
                 if i % cycle_length == 0 && i > 0 && i < amount - cycle_length {
-                    println!("Check for cycles in round {i} out of {amount}");
+                    // println!("Check for cycles in round {i} out of {amount}");
                     let new_rows: Vec<_> = self.grid[previous_cycle_start..=self.get_highest_occupied_row()].to_vec();
                     if self.grid[1..previous_cycle_start].ends_with(&new_rows) {
                         println!("Found cycle after {i} rounds. From: {previous_cycle_start} to including {}", self.get_highest_occupied_row());
@@ -254,16 +254,17 @@ impl Chamber {
                         }
                     }
                     if the_one_before_that > 1 && previous_cycle_start > 1 {
-                        let needle = &self.grid[the_one_before_that..previous_cycle_start];
-                        if let Some(u) = self.grid[1..the_one_before_that].windows(needle.len()).position(|window| window == needle) {
-                            dbg!(u);
+                        let needle = &self.grid[the_one_before_that..=previous_cycle_start];
+                        // if let Some(u) = self.grid[1..the_one_before_that].windows(needle.len()).position(|window| window == needle) {
+                        if self.grid[..(the_one_before_that-11)].ends_with(needle) {
+                            // dbg!(u);
                             dbg!(needle);
                             std::fs::write("cycle.txt", format!("{:?}", needle.iter().rev().collect_vec())).unwrap();
                             std::fs::write("chamber.txt", format!("{self}")).unwrap();
                             return;
                         }
                     }
-                    dbg!(previous_cycle_start, self.get_highest_occupied_row());
+                    // dbg!(previous_cycle_start, self.get_highest_occupied_row());
                     the_one_before_that = previous_cycle_start;
                     previous_cycle_start = self.get_highest_occupied_row();
                 }

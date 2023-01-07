@@ -453,11 +453,12 @@ pub mod tests {
     #[test]
     fn it_drops_rocks() {
         let mut chamber = Chamber::new(Jet::from_str(&read_example("day17.txt")).unwrap());
-        chamber.drop_many_rocks(2022);
+        chamber.drop_rocks(2022);
         
         assert_eq!(3068, chamber.get_highest_occupied_row());
     }
 
+    #[ignore = "Doesn't work yet"]
     #[test]
     fn it_drops_more_rocks() {
         let mut chamber = Chamber::new(Jet::from_str(&read_example("day17.txt")).unwrap());

@@ -4,10 +4,19 @@ use std::str::FromStr;
 use crate::util::read_input;
 
 pub fn solve() {
+    const ENCRYPTION_KEY: isize = 811_589_153;
     let input = read_input("day20.txt");
     let mut f = File::from_str(&input).unwrap();
     f.mix();
     println!("Day 20 part 1: {}", f.get_sum_of_grove_coordinates());
+    let mut f = File::from_str(&input).unwrap();
+    for v in &mut f.0 {
+        v.value *= ENCRYPTION_KEY;
+    }
+    for _ in 0..10 {
+        f.mix();
+    }
+    println!("Day 20 part 2: {}", f.get_sum_of_grove_coordinates());
 }
 
 #[derive(Clone, PartialEq, Eq)]
@@ -66,12 +75,26 @@ impl ToString for File {
 
 impl File {
     fn step(&self, from_index: usize, num_steps: isize, skip_self: bool) -> usize {
+        let mut num_steps = num_steps;
         if num_steps == 0 {
             return from_index;
         }
+        let is_negative = num_steps < 0;
+        if is_negative {
+            num_steps *= -1;
+        }
+        // we should be able to do some modulo
+        let num_steps = if skip_self {
+            num_steps % (isize::try_from(self.0.len()).unwrap() - 1)
+        } else {
+            num_steps % isize::try_from(self.0.len()).unwrap()
+        };
+        if num_steps == 0 {
+            return self.0[from_index].prev;
+        }
         let mut res = from_index;
-        if num_steps < 0 {
-            for _ in 0..(-1 * num_steps) {
+        if is_negative {
+            for _ in 0..num_steps {
                 res = self.0[res].prev;
                 if skip_self && res == from_index {
                     res = self.0[res].prev;
@@ -87,12 +110,13 @@ impl File {
         }
         res
     }
+
     pub fn mix(&mut self) {
         // println!("{}",self.to_string());
         for i in 0..self.0.len() {
             self.move_number(i);
-            //    println!("{}",self.to_string());
         }
+        // println!("{}",self.to_string());
     }
 
     fn move_number(&mut self, index: usize) {
@@ -178,16 +202,51 @@ pub mod tests {
         let input = read_input("day20.txt");
         let mut f = File::from_str(&input).unwrap();
         f.mix();
-        std::fs::write("day20_mixed.txt", f.to_string()).unwrap();
+        assert_eq!(13883, f.get_sum_of_grove_coordinates());
+    }
+
+    #[test]
+    fn it_can_do_ten_times_too() {
+        const ENCRYPTION_KEY: isize = 811589153;
+        let input = read_example("day20.txt");
+        let mut f = File::from_str(&input).unwrap();
+        for v in &mut f.0 {
+            v.value *= ENCRYPTION_KEY;
+        }
+        for _ in 0..10 {
+            f.mix();
+        }
         let idx_zero =
             f.0.iter()
                 .enumerate()
                 .find(|(_, p)| p.value == 0)
                 .unwrap()
                 .0;
-        println!("{}", f.0[f.step(idx_zero, 1000, false)].value);
-        println!("{}", f.0[f.step(idx_zero, 2000, false)].value);
-        println!("{}", f.0[f.step(idx_zero, 3000, false)].value);
-        println!("Day 20 part 1: {}", f.get_sum_of_grove_coordinates());
+        assert_eq!(811589153, f.0[f.step(idx_zero, 1000, false)].value);
+        assert_eq!(2434767459, f.0[f.step(idx_zero, 2000, false)].value);
+        assert_eq!(-1623178306, f.0[f.step(idx_zero, 3000, false)].value);
+        assert_eq!(1623178306, f.get_sum_of_grove_coordinates());
+    }
+    #[test]
+    fn it_skips_step_positive() {
+        let input = read_example("day20.txt");
+        let f = File::from_str(&input).unwrap();
+        assert_eq!(4, f.step(0, 10, true));
+        assert_eq!(4, f.step(0, 16, true));
+        assert_eq!(4, f.step(0, 22, true));
+    }
+
+    #[test]
+    fn it_can_do_ten_times_too2() {
+        let input = read_input("day20.txt");
+        let mut f = File::from_str(&input).unwrap();
+        const ENCRYPTION_KEY: isize = 811589153;
+        for v in &mut f.0 {
+            v.value *= ENCRYPTION_KEY;
+        }
+        for _ in 0..10 {
+            f.mix();
+        }
+        assert_eq!(19185967576920, f.get_sum_of_grove_coordinates());
     }
 }

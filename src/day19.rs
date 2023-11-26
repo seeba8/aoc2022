@@ -11,13 +11,13 @@ pub fn solve() {
     let mut sum: usize = 0;
     for (idx, blueprint) in blueprints.iter().enumerate() {
         // dbg!(idx);
-        sum += Swarm::new().max_geodes(24, blueprint) as usize * (idx + 1);
+        sum += Swarm::new().max_geodes(24, blueprint).0 as usize * (idx + 1);
     }
     println!("Day 19 part 1: {sum}");
     let mut prod = 1;
-    for (idx, blueprint) in blueprints.iter().take(3).enumerate() {
+    for blueprint in blueprints.iter().take(3) {
         // dbg!(idx);
-        prod *= Swarm::new().max_geodes(32, blueprint) as usize;
+        prod *= Swarm::new().max_geodes(32, blueprint).0 as usize;
     }
     println!("Day 19 part 2: {prod}");
 }
@@ -97,7 +97,7 @@ impl Swarm {
         projected_resources
     }
 
-    pub fn max_geodes(self, minutes: Robot, blueprint: &Blueprint) -> Robot {
+    pub fn max_geodes(self, minutes: Robot, blueprint: &Blueprint) -> (Robot, Self) {
         let mut swarms: HashSet<Self> = HashSet::new();
         swarms.insert(self);
         for _ in 0..minutes {
@@ -111,15 +111,18 @@ impl Swarm {
                 acc
             });
             let mut new_swarms: HashSet<Self> = HashSet::new();
+            let is_big_enough_to_optimise = swarms.len() > 1000;
             for s in swarms {
-                let mut is_worse = true;
-                for (i, r) in most_robots.iter().enumerate() {
-                    if s.robots[i] >= *r {
-                        is_worse = false;
+                if is_big_enough_to_optimise {
+                    let mut is_worse = true;
+                    for (i, r) in most_robots.iter().enumerate() {
+                        if s.robots[i] >= *r {
+                            is_worse = false;
+                        }
                     }
-                }
-                if is_worse {
-                    continue;
+                    if is_worse {
+                        continue;
+                    }
                 }
                 // tick the swarm
                 new_swarms.extend(s.tick(blueprint));
@@ -128,9 +131,10 @@ impl Swarm {
             // dbg!(swarms.len());
             // dbg!(swarms.iter().map(|s| s.resources[3]).max());
         }
-        // let best_swarm = swarms.iter().max_by(|a, b| a.resources[3].cmp(&b.resources[3])).unwrap();
+        let best_swarm = swarms.iter().max_by(|a, b| a.resources[3].cmp(&b.resources[3])).unwrap();
         // dbg!(best_swarm);
-        return swarms.iter().map(|s| s.resources[3]).max().unwrap();
+
+        (best_swarm.resources[3], best_swarm.clone())
     }
 }
 
@@ -172,13 +176,17 @@ pub mod tests {
             resources: [0, 0, 0, 0],
         };
         let blueprint: Blueprint = [[4, 0, 0, 0], [2, 0, 0, 0], [3, 14, 0, 0], [2, 0, 7, 0]];
-        assert_eq!(9, swarm.max_geodes(24, &blueprint));
+        let (x, winning_swarm) = swarm.max_geodes(24, &blueprint);
+
+        
+
+        assert_eq!(9, x);
         let swarm = Swarm {
             robots: [1, 0, 0, 0],
             resources: [0, 0, 0, 0],
         };
         let blueprint: Blueprint = [[2, 0, 0, 0], [3, 0, 0, 0], [3, 8, 0, 0], [3, 0, 12, 0]];
-        assert_eq!(12, swarm.max_geodes(24, &blueprint));
+        assert_eq!(12, swarm.max_geodes(24, &blueprint).0);
     }
 
     #[test]
@@ -189,7 +197,7 @@ pub mod tests {
         let mut sum = 0;
         for (idx, blueprint) in blueprints.iter().enumerate() {
             dbg!(idx);
-            sum += Swarm::new().max_geodes(24, blueprint) as usize * (idx + 1);
+            sum += Swarm::new().max_geodes(24, blueprint).0 as usize * (idx + 1);
         }
         assert_eq!(1404, sum);
     }
@@ -201,6 +209,6 @@ pub mod tests {
             resources: [0, 0, 0, 0],
         };
         let blueprint: Blueprint = [[4, 0, 0, 0], [2, 0, 0, 0], [3, 14, 0, 0], [2, 0, 7, 0]];
-        assert_eq!(56, swarm.max_geodes(32, &blueprint));
+        assert_eq!(56, swarm.max_geodes(32, &blueprint).0);
     }
 }

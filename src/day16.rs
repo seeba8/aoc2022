@@ -183,7 +183,7 @@ impl Vulcano {
             opened_valves.insert(*v, remaining_time);
         }
         let more_than_one = actors.len() > 1;
-        for mut actors_new in actors
+        for actors_new in actors
             .iter()
             .map(|actor| {
                 if actor.next_action == remaining_time {
@@ -260,8 +260,8 @@ impl Vulcano {
 pub struct Name([char; 2]);
 
 impl From<(char, char)> for Name {
-    fn from((a, b): (char, char)) -> Self {
-        Self([a, b])
+    fn from(x: (char, char)) -> Self {
+        Self(x.into())
     }
 }
 

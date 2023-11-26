@@ -43,14 +43,14 @@ pub struct Vulcano {
 /// And then a maximising one
 impl Vulcano {
     fn parse(input: &str) -> Self {
-        let mut valves = Vec::with_capacity(input.lines().count());
+        //let mut valves = Vec::with_capacity(input.lines().count());
         let mut tunnels: Vec<Tunnel> = vec![];
         let mut active_valves = Vec::with_capacity(input.lines().count());
         let mut flow_rates: HashMap<Name, usize> = HashMap::new();
         let mut valve_names = Vec::with_capacity(input.lines().count());
         for line in input.trim().lines() {
             let (valve, targets) = Valve::parse(line);
-            valves.push(valve);
+            //valves.push(valve);
             if valve.flow_rate > 0 {
                 active_valves.push(valve.name);
             }
@@ -129,7 +129,7 @@ impl Vulcano {
             .unwrap();
         self._get_best_pressure_release_with_elephant(
             &dist,
-            &mut vec![
+            &vec![
                 Actor {
                     next_action: remaining_time,
                     position: start,
@@ -146,7 +146,7 @@ impl Vulcano {
     fn _get_best_pressure_release_with_elephant(
         &self,
         dist: &HashMap<Tunnel, (usize, Name)>,
-        actors: &mut [Actor],
+        actors: &[Actor],
         opened_valves: &mut HashMap<Name, usize>,
         remaining_time: usize,
         best_flow: &mut usize,
@@ -206,7 +206,7 @@ impl Vulcano {
             // dbg!(&next_iteration);
             self._get_best_pressure_release_with_elephant(
                 dist,
-                &mut actors_new,
+                &actors_new,
                 opened_valves,
                 next_iteration,
                 best_flow,

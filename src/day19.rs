@@ -50,7 +50,7 @@ pub struct Swarm {
 }
 
 impl Swarm {
-    pub fn new() -> Self {
+    pub const fn new() -> Self {
         Self {
             robots: [1, 0, 0, 0],
             resources: [0, 0, 0, 0],
@@ -79,20 +79,20 @@ impl Swarm {
         self.collect();
 
         swarms.push(self);
-        return swarms;
+        swarms
     }
 
     #[allow(unused)]
     fn get_projected_resources(&self, remaining_ticks: Robot) -> [Robot; 4] {
-        let mut projected_resources = self.resources.clone();
-        for i in 0..4 {
-            projected_resources[i] += self.robots[i] * remaining_ticks;
+        let mut projected_resources = self.resources;
+        for (i, res) in projected_resources.iter_mut().enumerate() {
+            *res += self.robots[i] * remaining_ticks;
         }
-        return projected_resources;
+        projected_resources
     }
 
     pub fn max_geodes(self, minutes: Robot, blueprint: &Blueprint) -> Robot {
-        let mut swarms: HashSet<Swarm> = HashSet::new();
+        let mut swarms: HashSet<Self> = HashSet::new();
         swarms.insert(self);
         for tick_number in 0..minutes {
             dbg!(tick_number);
@@ -109,8 +109,8 @@ impl Swarm {
             //     .map(|s| s.robots.iter().sum::<u8>())
             //     .max()
             //     .unwrap();
-            let mut new_swarms: HashSet<Swarm> = HashSet::new();
-            for s in swarms.into_iter() {
+            let mut new_swarms: HashSet<Self> = HashSet::new();
+            for s in swarms {
                 // trim strictly worse swarms
                 if s.robots[3] < most_geode_robots {
                     continue;

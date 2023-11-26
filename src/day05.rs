@@ -1,4 +1,5 @@
 use color_eyre::eyre;
+use std::fmt::Write;
 use std::{fmt::Display, str::FromStr};
 
 use crate::util::read_input;
@@ -137,7 +138,7 @@ impl Ship {
 
     fn execute_9001(&mut self, instruction: &Instruction) {
         let source_len = self.stacks[instruction.from as usize - 1].0.len();
-        
+
         let moved_stack: Vec<Crate> = self.stacks[instruction.from as usize - 1]
             .0
             .drain((source_len - instruction.quantity as usize)..)
@@ -148,10 +149,10 @@ impl Ship {
     }
 
     fn get_tops(&self) -> String {
-        self.stacks
-            .iter()
-            .map(|s| format!("{}", *s.last().unwrap()))
-            .collect()
+        self.stacks.iter().fold(String::new(), |mut output, s| {
+            let _ = write!(output, "{}", *s.last().unwrap());
+            output
+        })
     }
 }
 

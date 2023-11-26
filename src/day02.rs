@@ -72,17 +72,17 @@ impl FromStr for Shape {
 
 impl Ord for Shape {
     fn cmp(&self, other: &Self) -> Ordering {
-        self.partial_cmp(other).unwrap()
+        match (self, other) {
+            (Self::Rock, Self::Rock) | (Self::Paper, Self::Paper) | (Self::Scissor, Self::Scissor) => Ordering::Equal,
+            (Self::Rock, Self::Paper) | (Self::Paper, Self::Scissor) | (Self::Scissor, Self::Rock) => Ordering::Less,
+            (Self::Rock, Self::Scissor) |  (Self::Paper, Self::Rock) | (Self::Scissor, Self::Paper)=> Ordering::Greater,
+        }
     }
 }
 
 impl PartialOrd for Shape {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        match (self, other) {
-            (Self::Rock, Self::Rock) | (Self::Paper, Self::Paper) | (Self::Scissor, Self::Scissor) => Some(Ordering::Equal),
-            (Self::Rock, Self::Paper) | (Self::Paper, Self::Scissor) | (Self::Scissor, Self::Rock) => Some(Ordering::Less),
-            (Self::Rock, Self::Scissor) |  (Self::Paper, Self::Rock) | (Self::Scissor, Self::Paper)=> Some(Ordering::Greater),
-        }
+        Some(self.cmp(other))
     }
 }
 

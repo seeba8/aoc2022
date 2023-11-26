@@ -33,6 +33,7 @@ dependencies = [
  "color-eyre",
  "itertools",
  "nom",
+ "once_cell",
  "regex",
 ]
 

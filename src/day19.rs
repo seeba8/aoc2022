@@ -176,9 +176,7 @@ pub mod tests {
             resources: [0, 0, 0, 0],
         };
         let blueprint: Blueprint = [[4, 0, 0, 0], [2, 0, 0, 0], [3, 14, 0, 0], [2, 0, 7, 0]];
-        let (x, winning_swarm) = swarm.max_geodes(24, &blueprint);
-
-        
+        let (x, _winning_swarm) = swarm.max_geodes(24, &blueprint);
 
         assert_eq!(9, x);
         let swarm = Swarm {

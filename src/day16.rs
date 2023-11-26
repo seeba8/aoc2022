@@ -257,7 +257,7 @@ impl Vulcano {
 }
 
 #[derive(Clone, Hash, PartialEq, Eq, Copy)]
-pub struct Name(([char; 2]));
+pub struct Name([char; 2]);
 
 impl From<(char, char)> for Name {
     fn from((a, b): (char, char)) -> Self {

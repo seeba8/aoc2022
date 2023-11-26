@@ -199,6 +199,7 @@ impl Chamber {
         }
     }
 
+    #[allow(unused)]
     fn drop_many_rocks(&mut self, amount: usize) {
         let original_rocks = self.rocks.clone();
         let cycle_length = self.rocks.rocks.len() * self.jet.directions.len();
@@ -463,7 +464,7 @@ pub mod tests {
     fn it_drops_more_rocks() {
         let mut chamber = Chamber::new(Jet::from_str(&read_example("day17.txt")).unwrap());
         chamber.drop_many_rocks(20220);
-        std::fs::write("test.txt",format!("{chamber}"));
+        std::fs::write("test.txt",format!("{chamber}")).unwrap();
         assert_eq!(30624, chamber.get_highest_occupied_row());
     }
 

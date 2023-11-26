@@ -24,6 +24,8 @@ mod day15;
 mod day16;
 mod day17;
 mod day18;
+mod day19;
+mod day20;
 
 fn main() -> color_eyre::Result<()>{
     color_eyre::install()?;
@@ -46,5 +48,6 @@ fn main() -> color_eyre::Result<()>{
     println!("Day 16 part 2 is skipped because my code is too slow to just run it everytime");
     day17::solve()?;
     day18::solve();
+    day19::solve(); // 1376 is too low
     Ok(())
 }

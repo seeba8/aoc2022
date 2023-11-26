@@ -14,9 +14,15 @@ pub fn solve() {
         sum += Swarm::new().max_geodes(24, blueprint) as usize * (idx + 1);
     }
     println!("Day 19 part 1: {sum}");
+    let mut prod = 1;
+    for (idx, blueprint) in blueprints.iter().take(3).enumerate() {
+        dbg!(idx);
+        prod *= Swarm::new().max_geodes(32, blueprint) as usize;
+    }
+    println!("Day 19 part 2: {prod}");
 }
 
-type Robot = u8;
+type Robot = u16;
 
 type Blueprint = [[Robot; 4]; 4];
 
@@ -62,7 +68,7 @@ impl Swarm {
         }
     }
 
-    pub fn tick(mut self, blueprint: &Blueprint) -> Vec<Swarm> {
+    pub fn tick(mut self, blueprint: &Blueprint) -> Vec<Self> {
         let mut swarms = vec![];
         for (robot_type, &r) in blueprint.iter().enumerate() {
             if self.resources.iter().zip(r).all(|(l, r)| *l >= r) {
@@ -94,54 +100,36 @@ impl Swarm {
     pub fn max_geodes(self, minutes: Robot, blueprint: &Blueprint) -> Robot {
         let mut swarms: HashSet<Self> = HashSet::new();
         swarms.insert(self);
-        for tick_number in 0..minutes {
-            dbg!(tick_number);
-            // get swarm with most geode-producing robots.
-            let most_geode_robots = swarms.iter().map(|s| s.robots[3]).max().unwrap();
+        for _ in 0..minutes {
+            // dbg!(tick_number);
 
-            let most_geodes = swarms.iter().map(|s| s.resources[3]).max().unwrap();
-            // let all_projected_resources: Vec<_> = swarms
-            //     .iter()
-            //     .map(|swarm| swarm.get_projected_resources(minutes - tick_number))
-            //     .collect();
-            // let most_robots = swarms
-            //     .iter()
-            //     .map(|s| s.robots.iter().sum::<u8>())
-            //     .max()
-            //     .unwrap();
+            let most_robots = swarms.iter().fold([0,0,0,0], |acc, s|  {
+                let mut acc = acc;
+                for (i, x) in acc.iter_mut().enumerate() {
+                    *x = (*x).max(s.robots[i]);
+                }
+                acc
+            });
             let mut new_swarms: HashSet<Self> = HashSet::new();
             for s in swarms {
-                // trim strictly worse swarms
-                if s.robots[3] < most_geode_robots {
-                    continue;
-                }
-
-                if s.resources[3] < most_geodes {
-                    continue;
-                    // can we do this?
-                }
-                /*if most_robots > 1 && s.robots.iter().sum::<u8>() == 1 {
-                    continue;
-                }
-                if tick_number > minutes / 2 {
-                    if s.robots[1] == 0 && s.robots[2] == 0 && s.robots[3] == 0 {
-                        continue;
+                let mut is_worse = true;
+                for (i, r) in most_robots.iter().enumerate() {
+                    if s.robots[i] >= *r {
+                        is_worse = false;
                     }
-                }*/
-                // let projected_resources = s.get_projected_resources(minutes - tick_number);
-                // if all_projected_resources
-                //     .iter()
-                //     .any(|r| r.iter().zip(projected_resources).all(|(l, r)| *l > r))
-                // {
-                //     continue;
-                // }
+                }
+                if is_worse {
+                    continue;
+                }
                 // tick the swarm
                 new_swarms.extend(s.tick(blueprint));
             }
             swarms = new_swarms;
-            dbg!(swarms.len());
-            dbg!(swarms.iter().map(|s| s.resources[3]).max());
+            // dbg!(swarms.len());
+            // dbg!(swarms.iter().map(|s| s.resources[3]).max());
         }
+        // let best_swarm = swarms.iter().max_by(|a, b| a.resources[3].cmp(&b.resources[3])).unwrap();
+        // dbg!(best_swarm);
         return swarms.iter().map(|s| s.resources[3]).max().unwrap();
     }
 }
@@ -204,5 +192,15 @@ pub mod tests {
             sum += Swarm::new().max_geodes(24, blueprint) as usize * (idx + 1);
         }
         assert_eq!(1404, sum);
+    }
+
+    #[test]
+    fn it_can_do_32_minutes() {
+        let swarm = Swarm {
+            robots: [1, 0, 0, 0],
+            resources: [0, 0, 0, 0],
+        };
+        let blueprint: Blueprint = [[4, 0, 0, 0], [2, 0, 0, 0], [3, 14, 0, 0], [2, 0, 7, 0]];
+        assert_eq!(56, swarm.max_geodes(32, &blueprint));
     }
 }

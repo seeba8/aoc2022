@@ -48,6 +48,7 @@ fn main() -> color_eyre::Result<()>{
     println!("Day 16 part 2 is skipped because my code is too slow to just run it everytime");
     day17::solve()?;
     day18::solve();
-    day19::solve(); // 1376 is too low
+    day19::solve(); 
+    day20::solve();
     Ok(())
 }

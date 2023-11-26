@@ -10,13 +10,13 @@ pub fn solve() {
     let blueprints = parse_blueprints(&input);
     let mut sum: usize = 0;
     for (idx, blueprint) in blueprints.iter().enumerate() {
-        dbg!(idx);
+        // dbg!(idx);
         sum += Swarm::new().max_geodes(24, blueprint) as usize * (idx + 1);
     }
     println!("Day 19 part 1: {sum}");
     let mut prod = 1;
     for (idx, blueprint) in blueprints.iter().take(3).enumerate() {
-        dbg!(idx);
+        // dbg!(idx);
         prod *= Swarm::new().max_geodes(32, blueprint) as usize;
     }
     println!("Day 19 part 2: {prod}");

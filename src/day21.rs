@@ -1,4 +1,4 @@
-use std::{collections::HashMap, str::FromStr};
+use std::{collections::HashMap, str::FromStr, fmt::Display};
 
 use {
     once_cell::sync::Lazy,
@@ -24,6 +24,7 @@ pub struct Monkey {
 pub enum Action {
     Number(Number),
     Calculation(Calculation),
+    Human
 }
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
@@ -32,6 +33,7 @@ pub enum Operator {
     Sub,
     Mul,
     Div,
+    Eq,
 }
 
 impl Operator {
@@ -41,6 +43,17 @@ impl Operator {
             Operator::Sub => lhs - rhs,
             Operator::Mul => lhs * rhs,
             Operator::Div => lhs / rhs,
+            _ => panic!("Equal shouldn't happen")
+        }
+    }
+
+    pub fn get_inverse(&self) -> Operator {
+        match self {
+            Operator::Add => Operator::Sub,
+            Operator::Sub => Operator::Add,
+            Operator::Mul => Operator::Div,
+            Operator::Div => Operator::Mul,
+            Operator::Eq => Operator::Eq,
         }
     }
 }
@@ -62,6 +75,19 @@ impl FromStr for Operator {
             "*" => Ok(Operator::Mul),
             "/" => Ok(Operator::Div),
             x => Err(color_eyre::eyre::eyre!("Cannot parse operator {x}")),
+        }
+    }
+}
+
+impl Display for Operator {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match &self {
+            Operator::Add => write!(f, " + "),
+            Operator::Sub => write!(f, " - "),
+            Operator::Mul => write!(f, " * "),
+            Operator::Div => write!(f, " / "),
+            Operator::Eq => write!(f, " = "),
+            
         }
     }
 }
@@ -135,6 +161,98 @@ impl Monkeys {
         }
         let Action::Calculation(calc) = self.monkeys.get(root).unwrap() else {return false};
         self.contains(&calc.lhs, child) || self.contains(&calc.rhs, child)
+    }
+
+    pub fn get_equation(&mut self) -> String {
+      
+        let Action::Calculation(root) = self.monkeys.get("root").unwrap().clone() else {panic!("Nonono")};
+        let lhs_contains_humn = self.contains(&root.lhs, "humn");
+        if lhs_contains_humn {
+            self.solve(&root.rhs);
+        } else {
+            self.solve(&root.lhs);
+        }
+        self.get_equation_part("root")
+        
+    } 
+
+    pub fn solve_equation(&mut self, root: &str, mut number: Number) -> Number{
+        println!("{}", self.get_equation());
+        match self.monkeys.get(root).unwrap() {
+            Action::Number(x) => return *x,
+            Action::Human => return number,
+            Action::Calculation(r) => {
+                
+                if matches!(self.monkeys.get(&r.lhs).unwrap(), Action::Number(_)) && matches!(self.monkeys.get(&r.rhs).unwrap(), Action::Number(_)) {
+                    let Action::Number(x) = self.monkeys.get(&r.lhs).unwrap() else {panic!()};
+                    return *x;
+                }
+                let (num, equation_part): (Number, &str) = if let Action::Number(n) = self.monkeys.get(&r.lhs).unwrap() {
+                    (*n, &r.rhs)
+                } else if let Action::Number(n) = self.monkeys.get(&r.rhs).unwrap() {
+                    (*n, &r.lhs)
+                } else {
+                    panic!("Neither side is a number");
+                };
+                let inverse = r.op.get_inverse();
+                number = inverse.apply(number, num);
+                let other_side = self.monkeys.get(equation_part).unwrap().clone();
+                self.monkeys.entry(root.to_string()).and_modify(|e| *e = other_side);
+                self.solve_equation(root, number)
+            },
+        }
+        
+    }
+
+    pub fn solve_equation2(&mut self, root: &str, number: &str) -> Number{
+        println!("\n{}", self.get_equation());
+        match self.monkeys.get(root).unwrap().clone() {
+            Action::Number(x) => return x,
+            Action::Human => {
+                let Action::Number(n) = self.monkeys.get(number).unwrap() else {panic!()};
+                *n
+            },
+            Action::Calculation(r) => {
+                
+                if matches!(self.monkeys.get(&r.lhs).unwrap(), Action::Number(_)) && matches!(self.monkeys.get(&r.rhs).unwrap(), Action::Number(_)) {
+                    let Action::Number(x) = self.monkeys.get(&r.lhs).unwrap() else {panic!()};
+                    return *x;
+                }
+                let (num, equation_part): (Number, &str) = if let Action::Number(n) = self.monkeys.get(&r.lhs).unwrap() {
+                    (*n, &r.rhs)
+                } else if let Action::Number(n) = self.monkeys.get(&r.rhs).unwrap() {
+                    (*n, &r.lhs)
+                } else {
+                    panic!("Neither side is a number");
+                };
+                let inverse = r.op.get_inverse();
+                let Action::Number(n) = self.monkeys.get_mut(number).unwrap() else {panic!()};
+                println!("{} {}", inverse, num);
+                *n = inverse.apply(*n, num);
+                let other_side = self.monkeys.get(equation_part).unwrap().clone();
+                self.monkeys.entry(root.to_string()).and_modify(|e| *e = other_side);
+                self.solve_equation2(root, number)
+            },
+        }
+        
+    }
+
+
+    fn get_equation_part(&mut self, root: &str) -> String {
+        let r = self.monkeys.get(root).unwrap().clone();
+        match r {
+            Action::Number(x) =>  x.to_string(),
+            Action::Calculation(calc) => {
+                if !self.contains(&calc.lhs, "humn") {
+                    self.solve(&calc.lhs);
+                }
+                if !self.contains(&calc.rhs, "humn") {
+                    self.solve(&calc.rhs);
+                }
+                format!("({} {} {})", self.get_equation_part(&calc.lhs),  calc.op, self.get_equation_part(&calc.rhs))
+            }
+            Action::Human => root.to_owned(),
+        }
     }
 
     pub fn human_solve(&mut self) -> Number {
@@ -239,5 +357,25 @@ pub mod tests {
         let Action::Calculation(root) = monkeys.monkeys.get("root").unwrap() else {panic!("Nonono")};
         assert_ne!(monkeys.contains(&root.lhs, "humn"), monkeys.contains(&root.rhs,"humn"));
 
+    }
+
+    #[test]
+    fn it_gets_equation() {
+        let input = read_input("day21.txt");
+        let mut monkeys: Monkeys = input.parse().unwrap();
+        monkeys.monkeys.entry("root".to_string()).and_modify(|m| if let Action::Calculation(c) = m {
+            c.op = Operator::Eq
+        });
+        monkeys.monkeys.entry("humn".to_string()).and_modify(|h| *h = Action::Human);
+        let Action::Calculation(root) = monkeys.monkeys.get("root").unwrap().clone() else {panic!()};
+        let result = if let Action::Number(_) = monkeys.monkeys.get(&root.lhs).unwrap() {
+            monkeys.solve_equation2(&root.rhs, &root.lhs)
+        } else {
+
+            monkeys.solve_equation2(&root.lhs, &root.rhs)
+        };
+        dbg!(result);
+        // 5823073937441 is too high
+        // TODO: Bug -- if variable is on right side of sub-calculation, the operations are wrong. e.g. 5 -  (2 * humn + 3) = 10, it does +5
     }
 }

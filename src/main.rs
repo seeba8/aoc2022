@@ -5,6 +5,8 @@
 #![warn(clippy::pedantic)]
 #![warn(clippy::nursery)]
 #![feature(let_chains)]
+#![feature(map_try_insert)]
+
 mod day01;
 mod day02;
 pub mod util;
@@ -28,6 +30,7 @@ mod day19;
 mod day20;
 mod day21;
 mod day22;
+mod day23;
 
 fn main() -> color_eyre::Result<()>{
     color_eyre::install()?;
@@ -54,5 +57,6 @@ fn main() -> color_eyre::Result<()>{
     day20::solve();
     day21::solve();
     day22::solve();
+    day23::solve();
     Ok(())
 }

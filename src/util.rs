@@ -41,6 +41,28 @@ impl Default for Direction {
     }
 }
 
+impl Direction {
+    #[must_use]
+    pub const fn turn(&self, turn_left: bool) -> Self {
+        if turn_left {
+            match self {
+                Self::Up => Self::Left,
+                Self::Right => Self::Up,
+                Self::Down => Self::Right,
+                Self::Left => Self::Down,
+            }
+        } else {
+            match self {
+                Self::Up => Self::Right,
+                Self::Right => Self::Down,
+                Self::Down => Self::Left,
+                Self::Left => Self::Up,
+            }
+        }
+
+    }
+}
+
 #[derive(Default)]
 struct Spiral {
     width: isize,

@@ -7,8 +7,14 @@ use crate::util::{Direction, read_input};
 pub fn solve() {
     let input = read_input("day24.txt");
     let mut valley: Valley = input.parse().unwrap();
-    println!("Day 24 part 1: {}", valley.find_fastest_path());
+    println!("Day 24 part 1: {}", valley.find_fastest_path(Point::new(1, 0), Point::new(valley.width - 2, valley.height - 1)));
+    let mut valley: Valley = input.parse().unwrap();
+    let s = valley.find_fastest_path(Point::new(1, 0), Point::new(valley.width - 2, valley.height - 1))
+        + valley.find_fastest_path(Point::new(valley.width - 2, valley.height - 1), Point::new(1, 0))
+        + valley.find_fastest_path(Point::new(1, 0), Point::new(valley.width - 2, valley.height - 1));
+    println!("Day 24 part 2: {s}"); // 688 is too low, strangely (690 also, to verify it's not an offbytwo)
 }
+
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
 struct Point {
     x: u8,
@@ -30,8 +36,8 @@ impl TryFrom<char> for Direction {
 }
 
 impl Point {
-    fn new(x: u8, y: u8) -> Point {
-        Point { x, y }
+    const fn new(x: u8, y: u8) -> Self {
+        Self { x, y }
     }
 }
 
@@ -43,56 +49,55 @@ struct Valley {
 }
 
 impl Valley {
-
-    fn find_fastest_path(&mut self) -> usize {
+    fn find_fastest_path(&mut self, from: Point, to: Point) -> usize {
         let mut ticks = 0;
         let mut expeditions = HashSet::new();
-        expeditions.insert(Point::new(1, 0));
+        expeditions.insert(from);
         loop {
             self.tick_blizzards();
             expeditions = self.get_expedition_movements(&expeditions);
             ticks += 1;
-            dbg!(&expeditions.len());
-            if expeditions.iter().any(|expedition| expedition.x == self.width - 2 && expedition.y == self.height - 1) {
+            //dbg!(&expeditions.len());
+            if expeditions.iter().any(|expedition| *expedition == to) {
                 return ticks;
             }
         }
     }
-    fn contains_blizzard(&self, point: &Point) -> bool {
-        self.blizzards.iter().any(|b| b.position == *point)
+    fn contains_blizzard(&self, point: Point) -> bool {
+        self.blizzards.iter().any(|b| b.position == point)
     }
     fn get_expedition_movements(&self, expeditions: &HashSet<Point>) -> HashSet<Point> {
         let mut new_expeditions = HashSet::new();
         for expedition in expeditions {
-            if !self.contains_blizzard(expedition) {
+            if !self.contains_blizzard(*expedition) {
                 // wait
                 new_expeditions.insert(*expedition);
             }
-            if expedition.y > 1 || expedition.y == 1 && expedition.x == 0 {
+            if expedition.y > 1 || expedition.y == 1 && expedition.x == 1 {
                 // up
                 let target = Point::new(expedition.x, expedition.y - 1);
-                if !self.contains_blizzard(&target) {
+                if !self.contains_blizzard(target) {
                     new_expeditions.insert(target);
                 }
             }
             if expedition.y < self.height - 2 || expedition.y == self.height - 2 && expedition.x == self.width - 2 {
                 // down
                 let target = Point::new(expedition.x, expedition.y + 1);
-                if !self.contains_blizzard(&target) {
+                if !self.contains_blizzard(target) {
                     new_expeditions.insert(target);
                 }
             }
             if expedition.x > 1 {
                 // left
                 let target = Point::new(expedition.x - 1, expedition.y);
-                if !self.contains_blizzard(&target) {
+                if !self.contains_blizzard(target) {
                     new_expeditions.insert(target);
                 }
             }
             if expedition.x < self.width - 2 && expedition.y > 0 {
                 // right
                 let target = Point::new(expedition.x + 1, expedition.y);
-                if !self.contains_blizzard(&target) {
+                if !self.contains_blizzard(target) {
                     new_expeditions.insert(target);
                 }
             }
@@ -100,7 +105,7 @@ impl Valley {
         new_expeditions
     }
     fn tick_blizzards(&mut self) {
-        for blizzard in self.blizzards.iter_mut() {
+        for blizzard in &mut self.blizzards {
             match blizzard.direction {
                 Direction::Up => {
                     blizzard.position.y -= 1;
@@ -140,10 +145,10 @@ struct Blizzard {
 impl Display for Direction {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            Direction::Up => write!(f, "^"),
-            Direction::Right => write!(f, ">"),
-            Direction::Down => write!(f, "v"),
-            Direction::Left => write!(f, "<"),
+            Self::Up => write!(f, "^"),
+            Self::Right => write!(f, ">"),
+            Self::Down => write!(f, "v"),
+            Self::Left => write!(f, "<"),
         }
     }
 }
@@ -183,9 +188,12 @@ impl FromStr for Valley {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let height = s.trim().lines().count();
         let width = s.trim().lines().next().ok_or_else(|| color_eyre::eyre::eyre!("Empty input"))?.len();
-        let mut valley = Valley::default();
-        valley.width = width.try_into()?;
-        valley.height = height.try_into()?;
+        let mut valley = Self {
+            width: width.try_into()?,
+            height: height.try_into()?,
+            ..Default::default()
+        };
+
         for (y, line) in s.trim().lines().enumerate() {
             for (x, c) in line.trim().chars().enumerate() {
                 if ['^', '>', 'v', '<'].contains(&c) {
@@ -213,7 +221,6 @@ mod tests {
     fn it_displays_valley() {
         let mut input = read_example("day24_1.txt");
         let valley: Valley = input.parse().unwrap();
-        input.replace_range(1..=1, "E");
         assert_eq!(valley.to_string().trim(), input.trim());
     }
 
@@ -247,6 +254,19 @@ mod tests {
     fn it_finds_fastest_path() {
         let input = read_example("day24_2.txt");
         let mut valley: Valley = input.parse().unwrap();
-        assert_eq!(valley.find_fastest_path(), 18);
+        assert_eq!(valley.find_fastest_path(Point::new(1, 0), Point::new(valley.width - 2, valley.height - 1)), 18);
+    }
+
+    #[test]
+    fn it_finds_fastest_path_to_and_back_and_to_again() {
+        let input = read_example("day24_2.txt");
+        let mut valley: Valley = input.parse().unwrap();
+        let a = valley.find_fastest_path(Point::new(1, 0), Point::new(valley.width - 2, valley.height - 1));
+        let b = valley.find_fastest_path(Point::new(valley.width - 2, valley.height - 1), Point::new(1, 0));
+        let c = valley.find_fastest_path(Point::new(1, 0), Point::new(valley.width - 2, valley.height - 1));
+        dbg!(a);
+        dbg!(b);
+        dbg!(c);
+        assert_eq!(a+b+c, 54);
     }
 }

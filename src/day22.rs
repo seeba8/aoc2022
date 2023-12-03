@@ -263,7 +263,7 @@ mod tests {
     #[test]
     fn it_parses_map() {
         let input = read_example("day22.txt");
-        let (map, instructions) = input.split_once("\n\n").unwrap();
+        let (map, _) = input.split_once("\n\n").unwrap();
         let map = Map::parse(map);
         let expected = r"        ...#
         .#..
